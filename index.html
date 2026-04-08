@@ -996,20 +996,36 @@ function renderHist(){
 
 function renderHistItems(h){
   const list=document.getElementById('hist-list');
-  if(!h.length){list.innerHTML='<div class="hist-empty">Sin materiales registrados.<br/>Genera un QR y pulsa "Guardar y registrar".</div>';return;}
+  if(!h.length){
+    list.innerHTML='<div class="hist-empty">Sin materiales registrados.<br/>Genera un QR y pulsa "Guardar y registrar".</div>';
+    return;
+  }
+  // Usar data-id en lugar de onclick inline para evitar problemas de scope
   list.innerHTML=h.map(r=>`
-    <div class="hist-item" onclick="openModal('${r.id}')">
+    <div class="hist-item" data-id="${r.id}">
       <div class="hist-thumb"><img src="${r.thumb||''}"/></div>
       <div class="hist-info">
         <div class="hist-title">${r.title||r.material||'Sin titulo'}</div>
         <div class="hist-meta">${r.date} · ID: ${r.id}${r.hasFoto||r.fotoUrl?' · 📷':''}</div>
         <span class="badge ok">✓ En Sheets</span>
-        <div class="hist-actions" onclick="event.stopPropagation()">
-          <button class="btn-mini" onclick="dlFromHist('${r.id}')">↓ PNG</button>
-          <button class="btn-mini red" onclick="delFromHist('${r.id}')">Eliminar</button>
+        <div class="hist-actions" data-stop="1">
+          <button class="btn-mini" data-action="dl" data-id="${r.id}">↓ PNG</button>
+          <button class="btn-mini red" data-action="del" data-id="${r.id}">Eliminar</button>
         </div>
       </div>
     </div>`).join('');
+
+  // Añadir eventos después de renderizar (garantiza que _histSheetsItems ya existe)
+  list.querySelectorAll('.hist-item').forEach(el=>{
+    el.addEventListener('click', function(e){
+      if(e.target.closest('[data-stop]')) return;
+      const action = e.target.dataset.action;
+      const id = e.target.dataset.id || this.dataset.id;
+      if(action==='dl')  { dlFromHist(id); }
+      else if(action==='del') { delFromHist(id); }
+      else { openModal(id); }
+    });
+  });
 }
 function delFromHist(id){delMat(id);setHist(getHist().filter(r=>r.id!==id));updateHistN();renderHist();}
 function dlFromHist(id){
