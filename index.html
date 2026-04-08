@@ -911,6 +911,34 @@ function updateHistN(){
   const n=getHist().length;
   document.getElementById('hist-n').textContent=n?'('+n+')':'';
 }
+function generarThumbsFaltantes(items, cb){
+  // Generar miniaturas QR para registros sin thumb local
+  const sinThumb = items.filter(r => !r.thumb);
+  if(!sinThumb.length){ cb(); return; }
+  let pending = sinThumb.length;
+  sinThumb.forEach(item => {
+    const url = APP_URL + '/?id=' + item.id;
+    const tmp = document.createElement('div');
+    tmp.style.cssText = 'position:absolute;left:-9999px;top:-9999px;';
+    document.body.appendChild(tmp);
+    try {
+      new QRCode(tmp, {text:url, width:80, height:80,
+        colorDark:'#1a1a18', colorLight:'#ffffff',
+        correctLevel: QRCode.CorrectLevel.M});
+    } catch(e) { pending--; if(pending===0) cb(); document.body.removeChild(tmp); return; }
+    setTimeout(()=>{
+      const el = tmp.querySelector('canvas')||tmp.querySelector('img');
+      if(el){
+        const src = el.tagName==='CANVAS' ? el.toDataURL('image/png') : el.src;
+        item.thumb = src;
+      }
+      if(tmp.parentNode) tmp.parentNode.removeChild(tmp);
+      pending--;
+      if(pending === 0) cb();
+    }, 400);
+  });
+}
+
 function cargarHistorialSheets(){
   const cbName='cbHist_'+Date.now();
   const script=document.createElement('script');
@@ -929,18 +957,27 @@ function cargarHistorialSheets(){
       const local=getHist();
       const merged=resp.items.map(item=>{
         const localRec=local.find(r=>r.id===item.ID)||{};
+        // Formatear fecha — Sheets puede devolver ISO string o fecha local
+        let fecha = item.Fecha||'';
+        if(fecha && fecha.toString().includes('T')){
+          try{ fecha=new Date(fecha).toLocaleDateString('es-ES'); }catch(e){}
+        }
         return {
-          id:    item.ID,
-          date:  item.Fecha||'',
-          title: item.Material||item.Lote||'Sin titulo',
-          material: item.Material||'',
-          thumb: localRec.thumb||'',
+          id:      item.ID,
+          date:    fecha,
+          title:   item.Material||item.Lote||'Sin titulo',
+          material:item.Material||'',
+          thumb:   localRec.thumb||'',
           fotoUrl: item.Foto||'',
-          synced: true,
-          hasFoto: !!(item.Foto||localRec.hasFoto)
+          synced:  true,
+          hasFoto: !!(item.Foto||localRec.hasFoto),
+          // Guardar datos de Sheets para poder regenerar QR
+          sheetsData: item
         };
       });
-      renderHistItems(merged);
+      // Guardar en local para tener thumbs disponibles
+      // Generar QR en miniatura para los que no tienen thumb local
+      generarThumbsFaltantes(merged, ()=>renderHistItems(merged));
     } else {
       renderHistItems(getHist());
     }
