@@ -378,10 +378,10 @@ function renderFichaContenido(ficha, id, d, mode) {
     mRows += row('Grosor (cm)', 'grosor', d['Grosor(cm)'], 'number');
   }
   mRows += row('Uds. por grupo', 'uds', d.Uds ? d.Uds+' ud' : d.Uds, isEdit?'number':'text');
-  mRows += row('m2 por unidad',  'm2ud', d['m2/ud'] ? d['m2/ud']+' m2' : d['m2/ud'], isEdit?'number':'text');
-  mRows += row('m3 por unidad',  'm3ud', d['m3/ud'] ? d['m3/ud']+' m3' : d['m3/ud'], isEdit?'number':'text');
-  mRows += row('m2 totales',     'm2t',  d['m2 totales'] ? d['m2 totales']+' m2' : d['m2 totales'], isEdit?'number':'text');
-  mRows += row('m3 totales',     'm3t',  d['m3 totales'] ? d['m3 totales']+' m3' : d['m3 totales'], isEdit?'number':'text');
+  mRows += row('m2 por unidad',  'm2ud', d['m2/ud']!==''&&d['m2/ud']!==undefined ? fmtNum(d['m2/ud'])+' m2' : '', isEdit?'number':'text');
+  mRows += row('m3 por unidad',  'm3ud', d['m3/ud']!==''&&d['m3/ud']!==undefined ? fmtNum(d['m3/ud'])+' m3' : '', isEdit?'number':'text');
+  mRows += row('m2 totales',     'm2t',  d['m2 totales']!==''&&d['m2 totales']!==undefined ? fmtNum(d['m2 totales'])+' m2' : '', isEdit?'number':'text');
+  mRows += row('m3 totales',     'm3t',  d['m3 totales']!==''&&d['m3 totales']!==undefined ? fmtNum(d['m3 totales'])+' m3' : '', isEdit?'number':'text');
   mRows += row('Notas',          'notas', d['Notas material'], 'text');
 
   let uRows = '';
@@ -473,6 +473,16 @@ function confirmarEliminar(id) {
       alert('Error al eliminar. Comprueba la conexión.');
     }
   });
+}
+
+// Normaliza valores numéricos de Sheets (pueden venir con coma decimal en locale europeo)
+function fmtNum(val) {
+  if (val === null || val === undefined || val === '') return '';
+  // Si es número directo de Sheets, formatearlo con 4 decimales máximo sin ceros trailing
+  const n = parseFloat(String(val).replace(',', '.'));
+  if (isNaN(n)) return String(val);
+  // Quitar ceros finales innecesarios
+  return parseFloat(n.toFixed(4)).toString();
 }
 
 function recalcFicha() {
