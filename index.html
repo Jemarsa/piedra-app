@@ -901,20 +901,63 @@ function updateHistN(){
   const n=getHist().length;
   document.getElementById('hist-n').textContent=n?'('+n+')':'';
 }
+function cargarHistorialSheets(){
+  const cbName='cbHist_'+Date.now();
+  const script=document.createElement('script');
+  const timeout=setTimeout(()=>{
+    delete window[cbName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+    // Fallback a historial local
+    renderHistItems(getHist());
+  },8000);
+  window[cbName]=(resp)=>{
+    clearTimeout(timeout);
+    delete window[cbName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+    if(resp&&resp.ok&&resp.items){
+      // Fusionar con historial local (las thumbnails están solo en local)
+      const local=getHist();
+      const merged=resp.items.map(item=>{
+        const localRec=local.find(r=>r.id===item.ID)||{};
+        return {
+          id:    item.ID,
+          date:  item.Fecha||'',
+          title: item.Material||item.Lote||'Sin titulo',
+          material: item.Material||'',
+          thumb: localRec.thumb||'',
+          fotoUrl: item.Foto||'',
+          synced: true,
+          hasFoto: !!(item.Foto||localRec.hasFoto)
+        };
+      });
+      renderHistItems(merged);
+    } else {
+      renderHistItems(getHist());
+    }
+  };
+  script.src=SHEETS+'?accion=historial&callback='+cbName;
+  script.onerror=()=>{ clearTimeout(timeout); delete window[cbName]; renderHistItems(getHist()); };
+  document.head.appendChild(script);
+}
+
 function renderHist(){
   const list=document.getElementById('hist-list');
-  const h=getHist();
+  list.innerHTML='<div class="hist-empty" style="opacity:0.6;">Cargando historial desde Sheets...</div>';
+  cargarHistorialSheets();
+}
+
+function renderHistItems(h){
+  const list=document.getElementById('hist-list');
   if(!h.length){list.innerHTML='<div class="hist-empty">Sin materiales registrados.<br/>Genera un QR y pulsa "Guardar y registrar".</div>';return;}
   list.innerHTML=h.map(r=>`
     <div class="hist-item" onclick="openModal('${r.id}')">
-      <div class="hist-thumb"><img src="${r.thumb}"/></div>
+      <div class="hist-thumb"><img src="${r.thumb||''}"/></div>
       <div class="hist-info">
-        <div class="hist-title">${r.title}</div>
-        <div class="hist-meta">${r.date} · ID: ${r.id}${r.hasFoto?' · 📷':''}</div>
-        ${r.synced?'<span class="badge ok">✓ En Sheets</span>':'<span class="badge local">Solo local</span>'}
+        <div class="hist-title">${r.title||r.material||'Sin titulo'}</div>
+        <div class="hist-meta">${r.date} · ID: ${r.id}${r.hasFoto||r.fotoUrl?' · 📷':''}</div>
+        <span class="badge ok">✓ En Sheets</span>
         <div class="hist-actions" onclick="event.stopPropagation()">
           <button class="btn-mini" onclick="dlFromHist('${r.id}')">↓ PNG</button>
-          ${!r.synced?`<button class="btn-mini" onclick="reSync('${r.id}')">↻ Sincronizar</button>`:''}
           <button class="btn-mini red" onclick="delFromHist('${r.id}')">Eliminar</button>
         </div>
       </div>
