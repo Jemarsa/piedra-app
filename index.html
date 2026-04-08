@@ -9,6 +9,7 @@
 <title>Cuellar Stone 1958 · QR</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>window._qrReady=typeof QRCode!=="undefined";</script>
 <style>
 :root{
   --stone:#1a1a18;--stone-mid:#2e2e2a;--stone-light:#3d3d38;
@@ -282,10 +283,12 @@ let timer=null, cd={m2ud:null,m3ud:null,m2t:null,m3t:null}, foto64=null, modalId
 window.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
-  if (id) {
+  // Solo mostrar ficha si el ID es real (empieza por M, no es BORRADOR)
+  if (id && id !== 'BORRADOR' && id.startsWith('M')) {
     mostrarFicha(id);
+  } else {
+    updateHistN();
   }
-  updateHistN();
 });
 
 // ── FICHA EN TIEMPO REAL (al escanear QR) ──
@@ -723,6 +726,7 @@ function doGen(){
   const color=document.getElementById('qr-col').value;
   // QR apunta a la URL de la app con el ID — corto, siempre legible
   const url=APP_URL+'/?id=BORRADOR';
+  // Para preview usamos texto simple hasta que se guarde con ID real
   renderQR(url,size,color,document.getElementById('qr-canvas'),()=>{
     document.getElementById('qr-ph').style.display='none';
     document.getElementById('qr-ctrl').style.display='flex';
@@ -737,12 +741,21 @@ function doGen(){
 }
 
 function renderQR(text,size,color,canvas,cb){
+  // Esperar a que QRCode esté disponible (por si la librería aún no cargó)
+  if(typeof QRCode === 'undefined'){
+    setTimeout(()=>renderQR(text,size,color,canvas,cb), 300);
+    return;
+  }
   const tmp=document.createElement('div');
   tmp.style.cssText='position:absolute;left:-9999px;top:-9999px;';
   document.body.appendChild(tmp);
   try{
     new QRCode(tmp,{text,width:size,height:size,colorDark:color,colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
-  }catch(e){document.body.removeChild(tmp);return;}
+  }catch(e){
+    document.body.removeChild(tmp);
+    if(cb)cb();
+    return;
+  }
   const tryRender = (attempt) => {
     const el=tmp.querySelector('canvas')||tmp.querySelector('img');
     if(!el){
