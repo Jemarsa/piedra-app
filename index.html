@@ -977,6 +977,7 @@ function cargarHistorialSheets(){
       });
       // Guardar en local para tener thumbs disponibles
       // Generar QR en miniatura para los que no tienen thumb local
+      window._histSheetsItems = merged;
       generarThumbsFaltantes(merged, ()=>renderHistItems(merged));
     } else {
       renderHistItems(getHist());
@@ -1046,10 +1047,14 @@ function openModal(id){
 }
 function closeModal(){document.getElementById('modal').classList.remove('on');modalId=null;}
 function dlModal(){
-  const rec=getHist().find(x=>x.id===modalId);if(!rec)return;
-  const a=document.createElement('a');
-  a.download='qr-'+rec.title.replace(/\s+/g,'-')+'.png';
-  a.href=rec.thumb;a.click();
+  const mc = document.getElementById('m-canvas');
+  const allRecs = (window._histSheetsItems||[]).concat(getHist());
+  const rec = allRecs.find(x=>x.id===modalId);
+  const titulo = rec ? (rec.title||rec.material||'material') : 'material';
+  const a = document.createElement('a');
+  a.download = 'qr-'+titulo.replace(/\s+/g,'-')+'.png';
+  a.href = mc && mc.width>0 ? mc.toDataURL('image/png') : (rec&&rec.thumb?rec.thumb:'');
+  if(a.href) a.click();
 }
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 
