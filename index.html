@@ -1013,8 +1013,13 @@ function renderHistItems(h){
 }
 function delFromHist(id){delMat(id);setHist(getHist().filter(r=>r.id!==id));updateHistN();renderHist();}
 function dlFromHist(id){
-  const r=getHist().find(x=>x.id===id);if(!r)return;
-  const a=document.createElement('a');a.download='qr-'+r.title.replace(/\s+/g,'-')+'.png';a.href=r.thumb;a.click();
+  const allRecs=(window._histSheetsItems||[]).concat(getHist());
+  const r=allRecs.find(x=>x.id===id);if(!r)return;
+  // Si no hay thumb, abrir modal para generar QR primero
+  if(!r.thumb){ openModal(id); return; }
+  const a=document.createElement('a');
+  a.download='qr-'+(r.title||r.material||'material').replace(/\s+/g,'-')+'.png';
+  a.href=r.thumb;a.click();
 }
 async function reSync(id){
   const d=getMat(id);if(!d)return;
@@ -1031,17 +1036,21 @@ async function reSync(id){
 
 // ── MODAL ──
 function openModal(id){
-  const rec=getHist().find(x=>x.id===id);if(!rec)return;
+  // Buscar en Sheets (memoria) y en local
+  const allRecs=(window._histSheetsItems||[]).concat(getHist());
+  const rec=allRecs.find(x=>x.id===id);
+  if(!rec){ alert('No se encontro el registro. Recarga el historial.'); return; }
   const d=getMat(id)||{};
   modalId=id;
-  document.getElementById('m-title').textContent=rec.title;
-  document.getElementById('m-meta').textContent=rec.date+' · ID: '+id+(rec.synced?' · En Sheets':' · Solo local');
+  document.getElementById('m-title').textContent=rec.title||rec.material||'Material';
+  document.getElementById('m-meta').textContent=rec.date+' · ID: '+id+' · En Sheets';
   const mf=document.getElementById('m-foto');
-  const mLocal2 = getMat(id);
-  const fotoSrc = d.fotoUrl || (mLocal2&&mLocal2.foto) || d.foto || '';
+  const fotoSrc=rec.fotoUrl||d.fotoUrl||(d.foto?d.foto:'')||'';
   if(fotoSrc){mf.src=fotoSrc;mf.style.display='block';}else mf.style.display='none';
   const url=APP_URL+'/?id='+id;
-  renderQR(url,220,rec.color||'#1a1a18',document.getElementById('m-canvas'),()=>{
+  const mc=document.getElementById('m-canvas');
+  renderQR(url,220,'#1a1a18',mc,()=>{
+    try{ rec.thumb=mc.toDataURL('image/png'); }catch(e){}
     document.getElementById('modal').classList.add('on');
   });
 }
